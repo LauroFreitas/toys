@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Máquina de Pelúcia</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            height: 100%;
+            overflow: hidden; /* Para evitar barras de rolagem desnecessárias */
+            color: #333;
+        }
+
+        .game-container {
+            width: 100%;
+            height: 100vh;
+            /* Use um placeholder ou a URL da sua imagem.
+               Para usar a imagem que você enviou, você precisaria hospedá-la
+               e colocar o link aqui, ou se o ambiente permitir, usar o nome do arquivo.
+               Por enquanto, usarei um placeholder.
+            */
+            background-image: url('img.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end; /* Botão de jogar fica na parte inferior */
+            padding-bottom: 50px; /* Espaço para o botão */
+            box-sizing: border-box;
+        }
+
+        .status-bar {
+            position: absolute;
+            top: 20px; /* Aumentado para não sobrepor a notch em mobile */
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.75);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            display: flex;
+            flex-wrap: wrap; /* Permite que os itens quebrem linha em telas menores */
+            gap: 15px; /* Espaçamento entre os itens */
+            font-size: 1em; /* Ajustado para melhor leitura */
+            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            max-width: 90%; /* Evita que a barra seja muito larga em telas grandes */
+            justify-content: center;
+        }
+
+        .status-item {
+            white-space: nowrap; /* Evita que o texto do item quebre linha */
+        }
+
+        .status-item span {
+            font-weight: bold;
+        }
+
+        #play-button {
+            padding: 18px 35px;
+            font-size: 1.3em;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(145deg, #ff4757, #e04050);
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 5px 18px rgba(255, 71, 87, 0.4);
+            transition: all 0.3s ease;
+            z-index: 5;
+            margin-bottom: 20px; /* Espaço abaixo do botão */
+        }
+
+        #play-button:hover {
+            background: linear-gradient(145deg, #e04050, #ff4757);
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 8px 25px rgba(255, 71, 87, 0.5);
+        }
+
+        #play-button:active {
+            transform: translateY(1px) scale(1);
+            box-shadow: 0 2px 10px rgba(255, 71, 87, 0.3);
+        }
+
+        #play-button:disabled {
+            background: #ccc;
+            color: #888;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .sidebar {
+            position: fixed;
+            right: -100%; /* Começa totalmente escondido */
+            top: 0;
+            width: 80%; /* Mais largo em mobile */
+            max-width: 320px; /* Limite para telas maiores */
+            height: 100%;
+            background-color: rgba(250, 250, 250, 0.98);
+            box-shadow: -6px 0 20px rgba(0,0,0,0.25);
+            transition: right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar.open {
+            right: 0;
+        }
+
+        #toggle-sidebar {
+            position: fixed; /* Fixo na tela */
+            top: 20px;
+            right: 20px;
+            padding: 10px 12px;
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 50%; /* Botão redondo */
+            cursor: pointer;
+            font-size: 1.5em; /* Ícone maior */
+            font-weight: bold;
+            z-index: 25; /* Acima da sidebar */
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            transition: background-color 0.3s ease, transform 0.3s ease;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #toggle-sidebar:hover {
+            background-color: #357abd;
+            transform: scale(1.1);
+        }
+
+
+        .sidebar-content {
+            padding: 20px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .sidebar-content h2 {
+            margin-top: 0;
+            color: #333;
+            text-align: center;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+            font-size: 1.4em;
+        }
+
+        #plushie-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #plushie-list li {
+            padding: 12px 8px;
+            border-bottom: 1px solid #eee;
+            font-size: 1em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #plushie-list li:last-child {
+            border-bottom: none;
+        }
+
+        .plushie-name {
+            flex-grow: 1;
+        }
+        .plushie-rarity-tag {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            color: white;
+            margin-left: 10px;
+            white-space: nowrap;
+        }
+
+        /* Cores de Raridade */
+        .rarity-comum { background-color: #6c757d; }
+        .rarity-incomum { background-color: #28a745; }
+        .rarity-raro { background-color: #007bff; }
+        .rarity-super-raro { background-color: #9333ea; }
+        .rarity-lendario {
+            background: linear-gradient(45deg, #fd7e14, #ffc107);
+            text-shadow: 0 0 3px rgba(0,0,0,0.5);
+        }
+
+
+        .catch-alert {
+            display: none; /* Escondido por padrão */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        .catch-alert-content {
+            background-color: white;
+            padding: 25px 35px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+            animation: fadeInScale 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .catch-alert-content h2 {
+            margin-top: 0;
+            color: #333;
+            font-size: 1.6em;
+        }
+
+        .catch-alert-content p {
+            font-size: 1.1em;
+            margin: 12px 0;
+        }
+
+        #caught-plushie-name {
+            font-weight: bold;
+            font-size: 1.5em;
+            margin-bottom: 5px;
+        }
+        #caught-plushie-rarity-text {
+            font-size: 1.1em;
+        }
+
+
+        #close-alert {
+            margin-top: 25px;
+            padding: 12px 25px;
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: background-color 0.3s ease;
+        }
+        #close-alert:hover {
+            background-color: #357abd;
+        }
+
+        @keyframes fadeInScale {
+            0% {
+                opacity: 0;
+                transform: scale(0.7);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Responsividade */
+        @media (max-width: 600px) {
+            .status-bar {
+                font-size: 0.9em;
+                padding: 10px 15px;
+                gap: 10px;
+            }
+            #play-button {
+                padding: 15px 30px;
+                font-size: 1.1em;
+            }
+            .sidebar-content h2 {
+                font-size: 1.2em;
+            }
+            #plushie-list li {
+                font-size: 0.9em;
+            }
+            .catch-alert-content h2 {
+                font-size: 1.4em;
+            }
+            #caught-plushie-name {
+                font-size: 1.3em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <header class="status-bar">
+            <div class="status-item">
+                <span>Tempo: <span id="timer">00:00</span></span>
+            </div>
+            <div class="status-item">
+                <span>Saldo: R$ <span id="balance">0</span>,00</span>
+            </div>
+            <div class="status-item">
+                <span>Pelúcias: <span id="plushie-count">0</span></span>
+            </div>
+        </header>
+
+        <button id="play-button" disabled>Carregando...</button>
+
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <h2>Minhas Pelúcias</h2>
+                <ul id="plushie-list">
+                    </ul>
+            </div>
+        </div>
+        <button id="toggle-sidebar">☰</button>
+
+
+        <div class="catch-alert" id="catch-alert">
+            <div class="catch-alert-content">
+                <h2>Você pegou um(a)!</h2>
+                <p id="caught-plushie-name"></p>
+                <p id="caught-plushie-rarity-text"></p>
+                <button id="close-alert">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const timerDisplay = document.getElementById('timer');
+            const balanceDisplay = document.getElementById('balance');
+            const plushieCountDisplay = document.getElementById('plushie-count');
+            const playButton = document.getElementById('play-button');
+            const sidebar = document.getElementById('sidebar');
+            const toggleSidebarButton = document.getElementById('toggle-sidebar');
+            const plushieList = document.getElementById('plushie-list');
+            const catchAlert = document.getElementById('catch-alert');
+            const caughtPlushieNameDisplay = document.getElementById('caught-plushie-name');
+            const caughtPlushieRarityTextDisplay = document.getElementById('caught-plushie-rarity-text');
+            const closeAlertButton = document.getElementById('close-alert');
+
+            let balance = 0;
+            let totalSeconds = 0;
+            let collectedPlushies = [];
+            const COST_TO_PLAY = 3;
+            let gameInterval;
+
+            const plushieTypes = [
+                // Comuns (60%)
+                { name: "Gatinho Cinza Malhado", rarity: "Comum" },
+                { name: "Ursinho Marrom Clássico", rarity: "Comum" },
+                { name: "Patinho Amarelo de Borracha", rarity: "Comum" },
+                { name: "Cachorrinho Bege Orelhudo", rarity: "Comum"},
+                // Incomuns (25%)
+                { name: "Coelho Rosa com Laço", rarity: "Incomum" },
+                { name: "Raposa Laranja Esperta", rarity: "Incomum" },
+                { name: "Porquinho Rosa Sorridente", rarity: "Incomum"},
+                // Raros (10%)
+                { name: "Panda Gigante Bambu", rarity: "Raro" },
+                { name: "Unicórnio Mágico Azulado", rarity: "Raro" },
+                // Super Raros (4%)
+                { name: "Dragãozinho Verde Escamoso", rarity: "Super Raro" },
+                // Lendários (1%)
+                { name: "Fênix Dourada Flamejante", rarity: "Lendário" }
+            ];
+
+            function determineRarity() {
+                const rand = Math.random() * 100;
+                if (rand < 60) return "Comum";        // 0-59.99
+                if (rand < 85) return "Incomum";      // 60-84.99
+                if (rand < 95) return "Raro";         // 85-94.99
+                if (rand < 99) return "Super Raro";   // 95-98.99
+                return "Lendário";                    // 99-99.99
+            }
+
+            function getRandomPlushieByRarity(rarity) {
+                const availablePlushies = plushieTypes.filter(p => p.rarity === rarity);
+                if (availablePlushies.length === 0) {
+                    // Fallback para o caso (improvável) de não haver pelúcia para a raridade
+                    console.warn(`Nenhuma pelúcia encontrada para a raridade: ${rarity}. Selecionando uma aleatória.`);
+                    return plushieTypes[Math.floor(Math.random() * plushieTypes.length)];
+                }
+                return availablePlushies[Math.floor(Math.random() * availablePlushies.length)];
+            }
+
+            function updateTimer() {
+                totalSeconds++;
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                if (timerDisplay) { // Verifica se o elemento existe
+                    timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                }
+
+                if (totalSeconds > 0 && totalSeconds % 60 === 0) {
+                    balance++;
+                    updateDisplays();
+                }
+            }
+
+            function updateDisplays() {
+                if (balanceDisplay) balanceDisplay.textContent = balance;
+                if (plushieCountDisplay) plushieCountDisplay.textContent = collectedPlushies.length;
+
+                if (playButton) {
+                    if (balance >= COST_TO_PLAY) {
+                        playButton.disabled = false;
+                        playButton.textContent = `Pegar Pelúcia (R$ ${COST_TO_PLAY})`;
+                    } else {
+                        playButton.disabled = true;
+                        playButton.textContent = `Saldo Insuficiente (R$ ${COST_TO_PLAY})`;
+                    }
+                }
+            }
+
+            function updateSidebar() {
+                if (!plushieList) return;
+                plushieList.innerHTML = '';
+                if (collectedPlushies.length === 0) {
+                    const emptyItem = document.createElement('li');
+                    emptyItem.textContent = 'Você ainda não pegou nenhuma pelúcia.';
+                    emptyItem.style.textAlign = 'center';
+                    emptyItem.style.color = '#777';
+                    plushieList.appendChild(emptyItem);
+                    return;
+                }
+                collectedPlushies.forEach(plushie => {
+                    const listItem = document.createElement('li');
+                    
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'plushie-name';
+                    nameSpan.textContent = plushie.name;
+                    
+                    const raritySpan = document.createElement('span');
+                    const rarityClass = `rarity-${plushie.rarity.toLowerCase().replace(/\s+/g, '-')}`;
+                    raritySpan.className = `plushie-rarity-tag ${rarityClass}`;
+                    raritySpan.textContent = plushie.rarity;
+                    
+                    listItem.appendChild(nameSpan);
+                    listItem.appendChild(raritySpan);
+                    plushieList.appendChild(listItem);
+                });
+            }
+
+            function showCatchAnimation(plushie) {
+                if (!caughtPlushieNameDisplay || !caughtPlushieRarityTextDisplay || !catchAlert) return;
+
+                caughtPlushieNameDisplay.textContent = plushie.name;
+                const rarityClass = `rarity-${plushie.rarity.toLowerCase().replace(/\s+/g, '-')}`;
+                // Limpa classes de cor anteriores e adiciona a nova
+                caughtPlushieNameDisplay.className = '';
+                caughtPlushieNameDisplay.classList.add(rarityClass.split('-')[0] + '-' + rarityClass.split('-')[1]); // e.g., rarity-comum, rarity-incomum
+                
+                caughtPlushieRarityTextDisplay.textContent = `Raridade: ${plushie.rarity}`;
+                caughtPlushieRarityTextDisplay.className = '';
+                caughtPlushieRarityTextDisplay.classList.add(rarityClass.split('-')[0] + '-' + rarityClass.split('-')[1]);
+
+
+                catchAlert.style.display = 'flex';
+            }
+
+            if (playButton) {
+                playButton.addEventListener('click', () => {
+                    if (balance >= COST_TO_PLAY) {
+                        balance -= COST_TO_PLAY;
+
+                        const targetRarity = determineRarity();
+                        const caughtPlushie = getRandomPlushieByRarity(targetRarity);
+
+                        collectedPlushies.push(caughtPlushie);
+                        showCatchAnimation(caughtPlushie);
+                        updateDisplays();
+                        updateSidebar();
+                    } else {
+                        // O botão já deve estar desabilitado, mas uma verificação extra não faz mal
+                        console.log("Saldo insuficiente!");
+                    }
+                });
+            }
+
+            if (toggleSidebarButton) {
+                toggleSidebarButton.addEventListener('click', () => {
+                    sidebar.classList.toggle('open');
+                    if (sidebar.classList.contains('open')) {
+                        toggleSidebarButton.innerHTML = '✕'; // Ícone de fechar
+                    } else {
+                        toggleSidebarButton.innerHTML = '☰'; // Ícone de menu
+                    }
+                });
+            }
+
+            if (closeAlertButton) {
+                closeAlertButton.addEventListener('click', () => {
+                    if (catchAlert) catchAlert.style.display = 'none';
+                });
+            }
+            
+            // Função para fechar a sidebar se clicar fora dela
+            document.addEventListener('click', function(event) {
+                if (!sidebar.contains(event.target) && !toggleSidebarButton.contains(event.target) && sidebar.classList.contains('open')) {
+                    sidebar.classList.remove('open');
+                    toggleSidebarButton.innerHTML = '☰';
+                }
+            });
+
+
+            // Iniciar jogo
+            function startGame() {
+                if (gameInterval) clearInterval(gameInterval); // Limpa intervalo anterior se houver
+                gameInterval = setInterval(updateTimer, 1000);
+                updateDisplays();
+                updateSidebar();
+            }
+            
+            startGame(); // Inicia o jogo
+        });
+    </script>
+</body>
+</html>
