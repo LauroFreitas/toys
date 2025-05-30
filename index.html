@@ -80,8 +80,9 @@
         /* Ensure background covers entire viewport height */
         .game-container {
             min-height: 100vh;
-            background-image: url('img.jpg'); /* Purple theme placeholder */
-            background-size: cover;
+            /* Alterado para imagem de placeholder e background-size: contain */
+            background-image: url('img.jpg');
+            background-size: contain; /* Faz a imagem caber, mantendo a proporção */
             background-position: center;
             background-repeat: no-repeat;
         }
